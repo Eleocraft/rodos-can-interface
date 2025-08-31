@@ -33,8 +33,8 @@ impl<'d, const TX_BUF_SIZE: usize, const RX_BUF_SIZE: usize> RodosCanInterface<'
     /// ```
     pub fn new(
         mut can_configurator: CanConfigurator<'d>,
-        rx_buf: &'static mut RxBuf<RX_BUF_SIZE>,
         tx_buf: &'static mut TxBuf<TX_BUF_SIZE>,
+        rx_buf: &'static mut RxBuf<RX_BUF_SIZE>,
         bitrate: u32,
         device_id: u8,
         rodos_ids: &[(u16, Option<u8>)],
