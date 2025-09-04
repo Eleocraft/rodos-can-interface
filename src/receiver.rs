@@ -149,13 +149,12 @@ impl<const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize>
                 }
                 // start new partial frame
                 *frame_ref = RodosPartialFrame::new(seq_len);
-                let free_space = frame_ref.data.len() - seq_len;
                 let data_len = data.len();
-                frame_ref.data.extend(data.into_iter().take(min(data_len, free_space)));
+                frame_ref.data.extend(data.into_iter().take(min(data_len, seq_len)));
             }
             RodosCanFramePart::Tail { data, seq_num } => {
                 if frame_ref.seq_num == seq_num {
-                    let free_space = frame_ref.data.len() - frame_ref.seq_len;
+                    let free_space = frame_ref.seq_len - frame_ref.data.len();
                     let data_len = data.len();
                     frame_ref.data.extend(data.into_iter().take(min(data_len, free_space)));
 
