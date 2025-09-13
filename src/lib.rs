@@ -26,6 +26,7 @@ use heapless::Vec;
 const RODOS_CAN_ID: u8 = 0x1C;
 
 /// Marker struct for the error mode that can filters are full
+#[derive(Debug)]
 pub struct FiltersFullError;
 
 /// Can peripheral in configuration stage
