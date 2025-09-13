@@ -18,7 +18,7 @@ pub mod receiver;
 pub mod sender;
 
 use embassy_stm32::can::{
-    self, BufferedCan, CanConfigurator, RxBuf, TxBuf, filter::ExtendedFilter,
+    self, filter::ExtendedFilter, BufferedCan, CanConfigurator, RxBuf, TxBuf
 };
 use embedded_can::ExtendedId;
 use heapless::Vec;
@@ -106,6 +106,25 @@ impl<'d> RodosCanInterface<ConfigPeriph<'d>> {
         self.peripheral.rodos_filters.push(extended_filter).map_err(|_| FiltersFullError)?;
         Ok(self)
     }
+    /// # allow receiving messages from all telestion topics.
+    ///
+    /// This is strongly discuraged in production,
+    /// as the RODOS gateway will likely flood the
+    /// can bus with irrelevant messages
+    pub fn allow_all_topics(&mut self) -> Result<&mut Self, FiltersFullError> {
+        let can_id_range_start: u32 = (RODOS_CAN_ID as u32) << (8 * 3);
+        let can_id_range_end: u32 = can_id_range_start | 0xFF_FF_FF;
+        let filter = can::filter::FilterType::Range {
+            to: ExtendedId::new(can_id_range_start).unwrap(),
+            from: ExtendedId::new(can_id_range_end).unwrap(),
+        };
+        let extended_filter = ExtendedFilter {
+            filter,
+            action: can::filter::Action::StoreInFifo0,
+        };
+        self.peripheral.rodos_filters.push(extended_filter).map_err(|_| FiltersFullError)?;
+        Ok(self)
+    }
     /// # set can bitrate
     ///
     /// This function simply calls the set_bitrate function on the can configurator.
@@ -139,7 +158,6 @@ impl<'d> RodosCanInterface<ConfigPeriph<'d>> {
         self.peripheral.configurator
             .properties()
             .set_extended_filters(&self.peripheral.rodos_filters.into_array().unwrap());
-
 
         // initialize buffered can
         let interface = self.peripheral.configurator.into_normal_mode().buffered(

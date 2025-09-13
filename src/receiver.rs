@@ -78,6 +78,19 @@ impl<const MPL: usize> RodosPartialFrame<MPL> {
             seq_len,
         }
     }
+    fn uninitialized() -> Self {
+        Self {
+            data: Vec::new(),
+            seq_num: 0,
+            seq_len: 0,
+        }
+    }
+    fn set_uninitialized(&mut self) {
+        self.seq_num = 0;
+    }
+    fn is_uninitialized(&self) -> bool {
+        self.seq_num == 0
+    }
 }
 
 impl<const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize>
@@ -135,7 +148,7 @@ impl<const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize>
         if !self.frames.contains_key(&id) {
             // add entry if it doesn't already exist
             self.frames
-                .insert(id, RodosPartialFrame::new(0))
+                .insert(id, RodosPartialFrame::uninitialized())
                 .map_err(|_| RodosCanReceiveError::SourceBufferFull)?;
         }
         
@@ -149,14 +162,15 @@ impl<const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize>
                 }
                 // start new partial frame
                 *frame_ref = RodosPartialFrame::new(seq_len);
-                let data_len = data.len();
-                frame_ref.data.extend(data.into_iter().take(min(data_len, seq_len)));
+                frame_ref.data.extend_from_slice(&data[0..min(data.len(), seq_len)]).unwrap();
             }
             RodosCanFramePart::Tail { data, seq_num } => {
+                if frame_ref.is_uninitialized() {
+                    return Ok(None); // if no head was parsed yet ignore this frame
+                }
                 if frame_ref.seq_num == seq_num {
                     let free_space = frame_ref.seq_len - frame_ref.data.len();
-                    let data_len = data.len();
-                    frame_ref.data.extend(data.into_iter().take(min(data_len, free_space)));
+                    frame_ref.data.extend_from_slice(&data[0..min(data.len(), free_space)]).unwrap();
 
                     frame_ref.seq_num += 1;
                 } else {
@@ -168,6 +182,7 @@ impl<const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize>
         // if buffer length >= seqence length, the frame is complete.
         // return the frame id
         if frame_ref.seq_len <= frame_ref.data.len() {
+            frame_ref.set_uninitialized();
             Ok(Some(id))
         } else {
             Ok(None)
