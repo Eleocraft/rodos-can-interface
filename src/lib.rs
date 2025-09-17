@@ -156,9 +156,7 @@ impl<'d> RodosCanInterface<ConfigPeriph<'d>> {
         mut self,
         tx_buf: &'static mut TxBuf<TX_BUF_SIZE>,
         rx_buf: &'static mut RxBuf<RX_BUF_SIZE>,
-    ) -> (
-        RodosCanInterface<ActivePeriph<'d, NUMBER_OF_SOURCES, MAX_PACKET_LENGTH, TX_BUF_SIZE, RX_BUF_SIZE>>,
-    ) {
+    ) -> RodosCanInterface<ActivePeriph<'d, NUMBER_OF_SOURCES, MAX_PACKET_LENGTH, TX_BUF_SIZE, RX_BUF_SIZE>> {
         // fill up unused filter slots with disabled filters
         while !self.peripheral.rodos_filters.is_full() {
             self.peripheral.rodos_filters.push(ExtendedFilter::disable()).unwrap();
@@ -174,12 +172,10 @@ impl<'d> RodosCanInterface<ConfigPeriph<'d>> {
         );
         let receiver = receiver::RodosCanReceiver::new(interface.reader());
         let sender = sender::RodosCanSender::new(interface.writer(), self.device_id);
-        (
-            RodosCanInterface {
-                peripheral: ActivePeriph { interface, receiver, sender },
-                device_id: self.device_id,
-            },
-        )
+        RodosCanInterface {
+            peripheral: ActivePeriph { interface, receiver, sender },
+            device_id: self.device_id,
+        }
     }
 }
 impl<'d, const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize, const TX_BUF_SIZE: usize, const RX_BUF_SIZE: usize>
