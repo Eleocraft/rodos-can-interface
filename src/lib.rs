@@ -4,8 +4,7 @@
 //! can protocol implemented by the linkinterfaceCAN gateway
 //! in the RODOS real time operating system (developed by the
 //! university of wuerzburg).
-//! At the moment this driver can only be used in split mode
-//! (seperate receiver and transmitter instance) with a buffered can
+//! At the moment this driver can only be used with a buffered can
 //! instance (a can mode where received messages are directly written
 //! into static memory on hardware interrupt) as this is the mode
 //! needed by the s²outh project this module was developed for.
@@ -23,6 +22,9 @@ use embassy_stm32::can::{
 use embedded_can::ExtendedId;
 use heapless::Vec;
 
+use receiver::{RodosCanReceiver, RodosCanFrame, RodosCanReceiveError};
+use sender::{RodosCanSender, RodosCanSendError};
+
 const RODOS_CAN_ID: u8 = 0x1C;
 
 /// Marker struct for the error mode that can filters are full
@@ -35,9 +37,17 @@ pub struct ConfigPeriph<'d> {
     configurator: CanConfigurator<'d>
 }
 
-/// Can peripheral in active (buffered) state
-pub struct ActivePeriph<'d, const TX_BUF_SIZE: usize, const RX_BUF_SIZE: usize> {
+/// Can peripheral in split (buffered) state
+pub struct SplitPeriph<'d, const TX_BUF_SIZE: usize, const RX_BUF_SIZE: usize> {
     _interface: BufferedCan<'d, TX_BUF_SIZE, RX_BUF_SIZE>,
+}
+
+pub struct ActivePeriph<'d,
+    const NUMBER_OF_SOURCES: usize, const MAX_PACKAGE_LENGTH: usize,
+    const TX_BUF_SIZE: usize, const RX_BUF_SIZE: usize> {
+    receiver: RodosCanReceiver<NUMBER_OF_SOURCES, MAX_PACKAGE_LENGTH>,
+    sender: RodosCanSender,
+    interface: BufferedCan<'d, TX_BUF_SIZE, RX_BUF_SIZE>,
 }
 
 /// Constructor and interface to read and write can messages with the RODOS protocol
@@ -134,7 +144,7 @@ impl<'d> RodosCanInterface<ConfigPeriph<'d>> {
         self.peripheral.configurator.set_bitrate(bitrate);
         self
     }
-    /// # Split the configurator into a configured sender and receiver instance
+    /// # Activate the can transmitter for sending and receiving
     ///
     /// + The const parameter *NUMBER_OF_SOURCES* specifies the size of the map for
     /// incoming can message sources. One "source" is one device sending on one topic.
@@ -142,14 +152,12 @@ impl<'d> RodosCanInterface<ConfigPeriph<'d>> {
     ///
     /// + The const parameter *MAX_PACKET_LENGTH* specifies the size of the buffer allocated to each
     /// source. as one RODOS can message contains 5 bytes of payload this should be a multiple of 5
-    pub fn split_buffered<const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize, const TX_BUF_SIZE: usize, const RX_BUF_SIZE: usize>(
+    pub fn activate<const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize, const TX_BUF_SIZE: usize, const RX_BUF_SIZE: usize>(
         mut self,
         tx_buf: &'static mut TxBuf<TX_BUF_SIZE>,
         rx_buf: &'static mut RxBuf<RX_BUF_SIZE>,
     ) -> (
-        receiver::RodosCanReceiver<NUMBER_OF_SOURCES, MAX_PACKET_LENGTH>,
-        sender::RodosCanSender,
-        RodosCanInterface<ActivePeriph<'d, TX_BUF_SIZE, RX_BUF_SIZE>>,
+        RodosCanInterface<ActivePeriph<'d, NUMBER_OF_SOURCES, MAX_PACKET_LENGTH, TX_BUF_SIZE, RX_BUF_SIZE>>,
     ) {
         // fill up unused filter slots with disabled filters
         while !self.peripheral.rodos_filters.is_full() {
@@ -164,14 +172,39 @@ impl<'d> RodosCanInterface<ConfigPeriph<'d>> {
             tx_buf,
             rx_buf
         );
-
+        let receiver = receiver::RodosCanReceiver::new(interface.reader());
+        let sender = sender::RodosCanSender::new(interface.writer(), self.device_id);
         (
-            receiver::RodosCanReceiver::new(interface.reader()),
-            sender::RodosCanSender::new(interface.writer(), self.device_id),
             RodosCanInterface {
-                peripheral: ActivePeriph { _interface: interface },
+                peripheral: ActivePeriph { interface, receiver, sender },
                 device_id: self.device_id,
             },
         )
+    }
+}
+impl<'d, const NUMBER_OF_SOURCES: usize, const MAX_PACKET_LENGTH: usize, const TX_BUF_SIZE: usize, const RX_BUF_SIZE: usize>
+    RodosCanInterface<ActivePeriph<'d, NUMBER_OF_SOURCES, MAX_PACKET_LENGTH, TX_BUF_SIZE, RX_BUF_SIZE>> {
+    /// # Split the configurator into a configured sender and receiver instance
+    pub fn split_buffered(self) -> (
+        receiver::RodosCanReceiver<NUMBER_OF_SOURCES, MAX_PACKET_LENGTH>,
+        sender::RodosCanSender,
+        RodosCanInterface<SplitPeriph<'d, TX_BUF_SIZE, RX_BUF_SIZE>>,
+    ) {
+        (
+            self.peripheral.receiver,
+            self.peripheral.sender,
+            RodosCanInterface {
+                peripheral: SplitPeriph { _interface: self.peripheral.interface },
+                device_id: self.device_id,
+            },
+        )
+    }
+    /// receive the next rodos frame async
+    pub async fn receive<'a>(&'a mut self) -> Result<RodosCanFrame<'a>, RodosCanReceiveError> {
+        self.peripheral.receiver.receive().await
+    }
+    /// send rodos frame async
+    pub async fn send(&mut self, topic: u16, data: &[u8]) -> Result<(), RodosCanSendError> {
+        self.peripheral.sender.send(topic, data).await
     }
 }
