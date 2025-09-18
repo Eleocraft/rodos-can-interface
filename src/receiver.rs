@@ -3,7 +3,7 @@ use core::cmp::min;
 use defmt::Format;
 use embassy_stm32::can::{enums::BusError, frame::Envelope, BufferedCanReceiver, Frame};
 use embedded_can::Id;
-use heapless::{FnvIndexMap, Vec};
+use heapless::{index_map::FnvIndexMap, Vec};
 
 /// Can frame for the RODOS can protocol
 /// conatining the topic and data

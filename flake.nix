@@ -26,11 +26,12 @@
             clang
             llvmPackages.bintools
             rustup
+            cargo-edit
 						probe-rs-tools
           ];
 
 					# rust toolchain version
-          RUSTC_VERSION = "stable";
+          RUSTC_VERSION = "nightly";
 
 					# set default log level
 					DEFMT_LOG = "info";
