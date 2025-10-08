@@ -11,7 +11,6 @@
 //! Different modes might be added in the future if required.
 //!
 //! This driver was developed on the basis of the embassy_stm32 project
-//! for the stm32g0b1ke microprocessor
 
 pub mod receiver;
 pub mod sender;

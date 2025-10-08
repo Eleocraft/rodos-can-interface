@@ -3,8 +3,13 @@ name = "rodos_can_interface"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+stm32g0b1ke = [ "embassy-stm32/stm32g0b1ke" ]
+stm32f407vg = [ "embassy-stm32/stm32f407vg" ]
+
 [dependencies]
-embassy-stm32 = { version = "0.4.0", features = [ "defmt", "stm32g0b1ke" ]  }
+embassy-stm32 = { version = "0.4.0", features = [ "defmt" ] }
 
 defmt = "1.0"
 
