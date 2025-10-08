@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = []
+default = [ "stm32f407vg" ]
 stm32g0b1ke = [ "embassy-stm32/stm32g0b1ke" ]
 stm32f407vg = [ "embassy-stm32/stm32f407vg" ]
 
