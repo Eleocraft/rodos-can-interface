@@ -556,7 +556,7 @@ checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 
 [[package]]
 name = "rodos_can_interface"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "defmt 1.0.1",
  "embassy-stm32",
