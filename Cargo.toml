@@ -1,7 +1,11 @@
 [package]
 name = "rodos_can_interface"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
+description = "embassy-based interface with the RODOS rtos can protocol"
+readme = "README.md"
+repository = "https://github.com/Eleocraft/rodos-can-interface.git"
+license-file = "LICENSE"
 
 [features]
 default = [ "stm32f407vg" ]
